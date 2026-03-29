@@ -1,0 +1,74 @@
+:root {
+  --bg: #000000;
+  --bg-elevated: #0a0a0a;
+  --surface: #0f0f0f;
+  --text: #fafafa;
+  --text-muted: #a3a3a3;
+  --accent-rgb: 239, 68, 68;
+  --accent: #ef4444;
+  --accent-hover: #f87171;
+  --accent-soft: rgba(239, 68, 68, 0.12);
+  --accent-on-soft: #fecaca;
+  --border: rgba(255, 255, 255, 0.08);
+  --radius: 16px;
+  --radius-sm: 12px;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", "Times New Roman", serif;
+  --font-mega: "Bebas Neue", "Arial Narrow", sans-serif;
+  --shadow: 0 32px 64px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  --header-h: 56px;
+  --form-error-text: #fecaca;
+  --form-error-bg: rgba(248, 113, 113, 0.12);
+  --form-error-border: rgba(248, 113, 113, 0.28);
+  --danger-rgb: 248, 113, 113;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+.container {
+  width: min(1120px, calc(100% - 2.5rem));
+  margin-inline: auto;
+}
+
+.accent {
+  color: var(--accent);
+}
