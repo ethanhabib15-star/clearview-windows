@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import { IconWindow } from "../components/Icons.jsx";
 import {
   ADMIN_STORAGE_KEY,
@@ -121,11 +121,11 @@ export default function AdminLayout() {
           </form>
           <p className="admin-hint">
             Use <code>ADMIN_KEY</code> from <code>.env</code>. Run{" "}
-            <code>npm run dev</code> for API + Vite.
+            <code>npm run dev</code> for API + client + admin.
           </p>
-          <Link to="/" className="admin-back">
+          <a href="/" className="admin-back">
             ← Back to site
-          </Link>
+          </a>
         </div>
       </div>
     );
@@ -135,15 +135,15 @@ export default function AdminLayout() {
     <div className="admin-app">
       <header className="admin-topbar">
         <div className="admin-topbar-inner admin-topbar-wide">
-          <Link to="/" className="admin-topbar-brand">
+          <a href="/" className="admin-topbar-brand">
             <IconWindow size={22} aria-hidden />
             <span>
               Ryzhkov <span className="admin-accent">ClearView</span> Admin
             </span>
-          </Link>
+          </a>
           <nav className="admin-tabs" aria-label="Admin sections">
             <NavLink
-              to="/admin/messages"
+              to="messages"
               className={({ isActive }) =>
                 `admin-tab${isActive ? " admin-tab-active" : ""}`
               }
@@ -151,7 +151,7 @@ export default function AdminLayout() {
               Messages
             </NavLink>
             <NavLink
-              to="/admin/invoices"
+              to="invoices"
               className={({ isActive }) =>
                 `admin-tab${isActive ? " admin-tab-active" : ""}`
               }

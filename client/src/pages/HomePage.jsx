@@ -205,7 +205,7 @@ function ContactForm() {
       setSubmitError(
         err instanceof Error
           ? err.message
-          : "Could not send. Start the app with npm run dev (API + Vite)."
+          : "Could not send. Start the app with npm run dev (API + client + admin)."
       );
     } finally {
       setIsSubmitting(false);
@@ -281,7 +281,7 @@ function ContactForm() {
       </button>
       <p className="form-note">
         Submissions are saved for your team. View them in the{" "}
-        <Link to="/admin">admin dashboard</Link> (protected).
+        <a href="/admin/">admin dashboard</a> (protected).
       </p>
     </form>
   );

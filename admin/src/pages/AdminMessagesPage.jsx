@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { IconMail, IconPhone, IconTrash } from "../components/Icons.jsx";
 import {
   adminAuthHeaders,
@@ -42,7 +41,7 @@ export default function AdminMessagesPage() {
       });
       if (r.status === 401) {
         clearStoredAdminKey();
-        window.location.assign("/admin");
+        window.location.assign("/admin/");
         return;
       }
       if (!r.ok) {
@@ -53,7 +52,7 @@ export default function AdminMessagesPage() {
       setMessages(Array.isArray(data.messages) ? data.messages : []);
     } catch {
       setLoadError(
-        "Cannot reach the API. Run npm run dev (API + Vite together)."
+        "Cannot reach the API. Run npm run dev (API + client + admin)."
       );
     } finally {
       setLoading(false);
@@ -81,7 +80,7 @@ export default function AdminMessagesPage() {
       });
       if (r.status === 401) {
         clearStoredAdminKey();
-        window.location.assign("/admin");
+        window.location.assign("/admin/");
         return;
       }
       const data = await r.json().catch(() => ({}));
@@ -137,9 +136,9 @@ export default function AdminMessagesPage() {
               Submit the contact form on the homepage; entries appear here
               instantly.
             </p>
-            <Link to="/#contact" className="admin-link">
+            <a href="/#contact" className="admin-link">
               Open contact form
-            </Link>
+            </a>
           </div>
         ) : (
           <div className="admin-table-wrap">

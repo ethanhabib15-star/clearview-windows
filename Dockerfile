@@ -12,7 +12,8 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY server ./server
-COPY --from=build /app/dist ./dist
+COPY --from=build /app/client/dist ./client/dist
+COPY --from=build /app/admin/dist ./admin/dist
 RUN chown -R node:node /app
 USER node
 EXPOSE 3001

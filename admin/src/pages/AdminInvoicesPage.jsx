@@ -143,7 +143,7 @@ export default function AdminInvoicesPage() {
       const r = await fetch("/api/invoices", { headers: adminAuthHeaders(k) });
       if (r.status === 401) {
         clearStoredAdminKey();
-        window.location.assign("/admin");
+        window.location.assign("/admin/");
         return;
       }
       if (!r.ok) {
@@ -193,7 +193,7 @@ export default function AdminInvoicesPage() {
       });
       if (r.status === 401) {
         clearStoredAdminKey();
-        window.location.assign("/admin");
+        window.location.assign("/admin/");
         return;
       }
       const data = await r.json().catch(() => ({}));
@@ -227,7 +227,7 @@ export default function AdminInvoicesPage() {
       });
       if (r.status === 401) {
         clearStoredAdminKey();
-        window.location.assign("/admin");
+        window.location.assign("/admin/");
         return;
       }
       const data = await r.json().catch(() => ({}));
@@ -269,7 +269,7 @@ export default function AdminInvoicesPage() {
       });
       if (r.status === 401) {
         clearStoredAdminKey();
-        window.location.assign("/admin");
+        window.location.assign("/admin/");
         return;
       }
       const data = await r.json().catch(() => ({}));

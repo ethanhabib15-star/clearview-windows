@@ -21,7 +21,10 @@ const PORT = Number(process.env.PORT || process.env.API_PORT) || 3001;
 const HOST =
   String(process.env.API_HOST || process.env.HOST || "0.0.0.0").trim() ||
   "0.0.0.0";
-const DIST_DIR = path.join(ROOT, "dist");
+const CLIENT_DIST = path.join(ROOT, "client", "dist");
+const ADMIN_DIST = path.join(ROOT, "admin", "dist");
+const CLIENT_INDEX = path.join(CLIENT_DIST, "index.html");
+const ADMIN_INDEX = path.join(ADMIN_DIST, "index.html");
 
 async function writeMessages(messages) {
   const payload = JSON.stringify(messages, null, 2);
@@ -278,14 +281,26 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-if (existsSync(path.join(DIST_DIR, "index.html"))) {
-  app.use(express.static(DIST_DIR));
-  app.use((req, res, next) => {
-    if (req.method !== "GET" && req.method !== "HEAD") return next();
-    if (req.path.startsWith("/api")) return next();
-    res.sendFile(path.join(DIST_DIR, "index.html"));
-  });
+const hasClientDist = existsSync(CLIENT_INDEX);
+const hasAdminDist = existsSync(ADMIN_INDEX);
+
+if (hasAdminDist) {
+  app.use("/admin", express.static(ADMIN_DIST));
 }
+if (hasClientDist) {
+  app.use(express.static(CLIENT_DIST));
+}
+
+app.use((req, res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD") return next();
+  if (req.path.startsWith("/api")) return next();
+  if (req.path.startsWith("/admin")) {
+    if (!hasAdminDist) return next();
+    return res.sendFile(ADMIN_INDEX);
+  }
+  if (!hasClientDist) return next();
+  res.sendFile(CLIENT_INDEX);
+});
 
 app.listen(PORT, HOST, () => {
   const where =
@@ -293,10 +308,13 @@ app.listen(PORT, HOST, () => {
       ? `http://127.0.0.1:${PORT} (all interfaces: ${HOST})`
       : `http://${HOST}:${PORT}`;
   console.log(`Server ${where}`);
-  if (existsSync(path.join(DIST_DIR, "index.html"))) {
-    console.log("Serving SPA from dist/");
+  if (hasClientDist || hasAdminDist) {
+    if (hasClientDist) console.log("Public site → client/dist/");
+    if (hasAdminDist) console.log("Admin app → /admin (admin/dist/)");
   } else {
-    console.log("No dist/index.html — run npm run build to serve the site, or use Vite dev separately.");
+    console.log(
+      "No client/dist or admin/dist — run npm run build, or use Vite dev (client + admin)."
+    );
   }
   if (existsSync(ENV_PATH)) {
     console.log(".env found — ADMIN_KEY taken from file (shell vars overridden).");
