@@ -1,0 +1,14 @@
+# https://render.com/docs/blueprint-spec
+# After push to GitHub: New > Blueprint > select repo; set ADMIN_KEY in dashboard (Environment).
+services:
+  - type: web
+    name: window-installer-web
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_KEY
+        sync: false
