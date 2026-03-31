@@ -6,6 +6,9 @@ admin/dist
 .DS_Store
 .env
 server/messages.json
+server/contacts.json
 server/invoices.json
+server/payments.json
+server/payout-settings.enc.json
 *.log
 Thumbs.db

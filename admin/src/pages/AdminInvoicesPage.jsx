@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import InvoiceDocument from "@shared/invoice/InvoiceDocument.jsx";
+import ElectronicSignatureModal from "../components/ElectronicSignatureModal.jsx";
+import { apiUrl, readResponseJson } from "../admin/api.js";
 import {
   adminAuthHeaders,
   clearStoredAdminKey,
@@ -7,163 +10,224 @@ import {
 import "./Admin.css";
 import "./InvoicePrint.css";
 
-const money = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
+function cloneInvoice(inv) {
+  return JSON.parse(JSON.stringify(inv));
+}
 
-function computeInvoiceTotals(inv) {
-  if (!inv?.lineItems?.length) return { subtotal: 0, tax: 0, total: 0 };
+function computeInvoiceTotalDollars(inv) {
+  if (!inv?.lineItems?.length) return 0;
   const subtotal = inv.lineItems.reduce(
     (s, r) => s + (Number(r.quantity) || 0) * (Number(r.rate) || 0),
     0
   );
   const tax = (subtotal * (Number(inv.taxPercent) || 0)) / 100;
-  return { subtotal, tax, total: subtotal + tax };
+  return subtotal + tax;
 }
 
-function cloneInvoice(inv) {
-  return JSON.parse(JSON.stringify(inv));
+const moneyHistory = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
+
+function formatInvoiceCreatedAt(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return String(iso);
+  }
 }
 
-function InvoiceDocument({ invoice }) {
-  if (!invoice) return null;
-  const { subtotal, tax, total } = computeInvoiceTotals(invoice);
-  return (
-    <div className="invoice-doc">
-      <header className="invoice-doc-header">
-        <div>
-          <div className="invoice-doc-brand">
-            {invoice.fromName ? (
-              invoice.fromName
-            ) : (
-              <>
-                Ryzhkov <span>ClearView Windows</span>
-              </>
-            )}
-          </div>
-          <p className="invoice-doc-tag">Tulsa metro · Broken Arrow · Coweta</p>
-        </div>
-        <div className="invoice-doc-invoice-label">
-          <strong>INVOICE</strong>
-          <div className="invoice-doc-meta">
-            <div>{invoice.number}</div>
-            <div>
-              Issued {invoice.issueDate || "—"}
-              {invoice.dueDate ? ` · Due ${invoice.dueDate}` : ""}
-            </div>
-          </div>
-        </div>
-      </header>
+function invoiceHistoryStatus(inv) {
+  if (inv?.paymentStatus === "paid") return "paid";
+  if (inv?.paymentStatus === "pending") return "pending";
+  return "unpaid";
+}
 
-      <div className="invoice-doc-columns">
-        <div className="invoice-doc-box">
-          <h3>From</h3>
-          <p>
-            {[invoice.fromName, invoice.fromAddress, invoice.fromPhone, invoice.fromEmail]
-              .filter(Boolean)
-              .join("\n") || "—"}
-          </p>
-        </div>
-        <div className="invoice-doc-box">
-          <h3>Bill to</h3>
-          <p>
-            {[invoice.clientName, invoice.clientAddress, invoice.clientEmail]
-              .filter(Boolean)
-              .join("\n") || "—"}
-          </p>
-        </div>
-      </div>
+function normalizeInvoiceNumberKey(s) {
+  return String(s ?? "")
+    .trim()
+    .replace(/\s+/g, "")
+    .toLowerCase();
+}
 
-      <table className="invoice-doc-table">
-        <thead>
-          <tr>
-            <th>Description</th>
-            <th>Qty</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {invoice.lineItems?.map((row) => {
-            const line = (Number(row.quantity) || 0) * (Number(row.rate) || 0);
-            return (
-              <tr key={row.id}>
-                <td>{row.description || "—"}</td>
-                <td>{row.quantity}</td>
-                <td>{money.format(line)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+function isLocalDraft(d) {
+  return Boolean(d?.id?.startsWith("local-"));
+}
 
-      <div className="invoice-doc-totals">
-        <div className="invoice-doc-totals-row">
-          <span>Subtotal</span>
-          <strong>{money.format(subtotal)}</strong>
-        </div>
-        <div className="invoice-doc-totals-row">
-          <span>Tax ({Number(invoice.taxPercent) || 0}%)</span>
-          <strong>{money.format(tax)}</strong>
-        </div>
-        <div className="invoice-doc-totals-row invoice-doc-total-final">
-          <span>Total due</span>
-          <span>{money.format(total)}</span>
-        </div>
-      </div>
+function createBlankLocalDraft() {
+  const id = `local-${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+  const lineId = crypto.randomUUID();
+  return {
+    id,
+    number: "",
+    issueDate: now.slice(0, 10),
+    dueDate: "",
+    fromName: "Ryzhkov ClearView Windows",
+    fromAddress: "Tulsa metro · Broken Arrow · Coweta\nNortheast Oklahoma",
+    fromPhone: "(918) 555-0100",
+    fromEmail: "hello@ryzhkovclearviewwindows.com",
+    clientName: "",
+    clientAddress: "",
+    clientEmail: "",
+    lineItems: [{ id: lineId, description: "", quantity: 1, rate: 0 }],
+    taxPercent: 8.25,
+    notes: "",
+    paymentBank: "",
+    paymentAccount: "",
+    paymentPhone: "",
+    signatureDataUrl: "",
+    signedAt: "",
+    paymentStatus: "unpaid",
+    paidAt: "",
+    createdAt: "",
+    updatedAt: "",
+  };
+}
 
-      {invoice.notes?.trim() ? (
-        <div className="invoice-doc-notes">
-          <h3>Notes</h3>
-          <p>{invoice.notes}</p>
-        </div>
-      ) : null}
+function newLineItemId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `line-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
 
-      <footer className="invoice-doc-footer">
-        Thank you for your business · Questions? Reply to this invoice or call{" "}
-        {invoice.fromPhone || "us"}.
-      </footer>
-    </div>
-  );
+function bodyForInvoiceApi(draft) {
+  const lines = Array.isArray(draft.lineItems) ? draft.lineItems : [];
+  return {
+    number: String(draft?.number ?? "").trim(),
+    issueDate: draft.issueDate,
+    dueDate: draft.dueDate,
+    fromName: draft.fromName,
+    fromAddress: draft.fromAddress,
+    fromPhone: draft.fromPhone,
+    fromEmail: draft.fromEmail,
+    clientName: draft.clientName,
+    clientAddress: draft.clientAddress,
+    clientEmail: draft.clientEmail,
+    lineItems: lines.map((row) => ({
+      id:
+        row?.id != null && String(row.id).trim()
+          ? String(row.id).trim()
+          : newLineItemId(),
+      description: row.description ?? "",
+      quantity: Number(row.quantity) || 0,
+      rate: Number(row.rate) || 0,
+    })),
+    taxPercent: Number(draft.taxPercent) || 0,
+    notes: draft.notes,
+    paymentBank: draft.paymentBank,
+    paymentAccount: draft.paymentAccount,
+    paymentPhone: draft.paymentPhone,
+    signatureDataUrl: draft.signatureDataUrl,
+    signedAt: draft.signedAt,
+  };
+}
+
+function validateDraftForSave(draft, savedInvoices) {
+  const errors = [];
+  const num = String(draft.number ?? "").trim();
+  if (!num) errors.push("Invoice number is required.");
+  const client = String(draft.clientName ?? "").trim();
+  if (!client) errors.push("Customer / company name is required.");
+  const lines = draft.lineItems || [];
+  let hasLine = false;
+  for (const row of lines) {
+    const desc = String(row.description ?? "").trim();
+    const qty = Number(row.quantity) || 0;
+    const rate = Number(row.rate) || 0;
+    if (desc && qty > 0 && rate > 0) {
+      hasLine = true;
+      break;
+    }
+  }
+  if (!hasLine) {
+    errors.push(
+      "Add at least one line item with a description, quantity greater than zero, and price greater than zero."
+    );
+  }
+  const total = computeInvoiceTotalDollars(draft);
+  if (!(total > 0)) {
+    errors.push("Invoice total must be greater than zero.");
+  }
+  if (num) {
+    const key = normalizeInvoiceNumberKey(num);
+    const selfId = isLocalDraft(draft) ? null : String(draft.id);
+    const dup = savedInvoices.find((inv) => {
+      if (selfId && String(inv.id) === selfId) return false;
+      return normalizeInvoiceNumberKey(inv.number) === key;
+    });
+    if (dup) {
+      errors.push(
+        "An invoice with this number already exists. Use a unique invoice number."
+      );
+    }
+  }
+  return { ok: errors.length === 0, errors };
 }
 
 export default function AdminInvoicesPage() {
   const [invoices, setInvoices] = useState([]);
-  const [draft, setDraft] = useState(null);
+  const [draft, setDraft] = useState(() => createBlankLocalDraft());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [sigModalOpen, setSigModalOpen] = useState(false);
+  const [adminSection, setAdminSection] = useState("create");
+  const [viewInvoice, setViewInvoice] = useState(null);
+  /** Keeps save in sync with the invoice # field (React state can lag the DOM by one update). */
+  const invoiceNumberInputRef = useRef(null);
 
-  const loadInvoices = useCallback(async () => {
+  const loadInvoices = useCallback(async (opts) => {
+    const silent = Boolean(opts?.silent);
     const k = getStoredAdminKey();
-    if (!k) return;
-    setLoading(true);
-    setError("");
+    if (!k) {
+      setLoading(false);
+      return;
+    }
+    if (!silent) {
+      setLoading(true);
+      setError("");
+    }
     try {
-      const r = await fetch("/api/invoices", { headers: adminAuthHeaders(k) });
+      const r = await fetch(apiUrl("/api/invoices"), {
+        headers: adminAuthHeaders(k),
+      });
       if (r.status === 401) {
         clearStoredAdminKey();
         window.location.assign("/admin/");
         return;
       }
       if (!r.ok) {
-        setError("Could not load invoices.");
+        if (!silent) {
+          setError("Could not load invoices.");
+        }
         return;
       }
       const data = await r.json();
       const list = Array.isArray(data.invoices) ? data.invoices : [];
       setInvoices(list);
       setDraft((prev) => {
+        if (prev?.id && isLocalDraft(prev)) {
+          return prev;
+        }
         if (prev?.id) {
           const fresh = list.find((x) => String(x.id) === String(prev.id));
           if (fresh) return cloneInvoice(fresh);
-          return list[0] ? cloneInvoice(list[0]) : null;
+          // Do not clear the editor if the list is empty or missing this id (avoids wiping after save).
+          return prev;
         }
-        if (!prev && list.length > 0) return cloneInvoice(list[0]);
         return prev;
       });
     } catch {
-      setError("Network error loading invoices.");
+      if (!silent) {
+        setError("Network error loading invoices.");
+      }
     } finally {
       setLoading(false);
     }
@@ -173,64 +237,155 @@ export default function AdminInvoicesPage() {
     loadInvoices();
   }, [loadInvoices]);
 
+  useEffect(() => {
+    if (adminSection === "history") {
+      loadInvoices();
+    }
+  }, [adminSection, loadInvoices]);
+
+  useEffect(() => {
+    if (!viewInvoice) return undefined;
+    function onKey(e) {
+      if (e.key === "Escape") setViewInvoice(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [viewInvoice]);
+
+  useEffect(() => {
+    if (!successMessage) return undefined;
+    const t = window.setTimeout(() => setSuccessMessage(""), 5000);
+    return () => window.clearTimeout(t);
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (!isLocalDraft(draft)) return undefined;
+    function beforeUnload(e) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [draft]);
+
+  function confirmDiscardLocalDraft() {
+    return window.confirm(
+      "You have an unsaved invoice draft. Discard it and continue?"
+    );
+  }
+
   function selectInvoice(inv) {
+    if (isLocalDraft(draft) && !confirmDiscardLocalDraft()) {
+      return;
+    }
+    setError("");
+    setSuccessMessage("");
     setDraft(cloneInvoice(inv));
   }
 
-  async function handleNew() {
-    const k = getStoredAdminKey();
-    if (!k) return;
-    setSaving(true);
-    setError("");
-    try {
-      const r = await fetch("/api/invoices", {
-        method: "POST",
-        headers: {
-          ...adminAuthHeaders(k),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      });
-      if (r.status === 401) {
-        clearStoredAdminKey();
-        window.location.assign("/admin/");
-        return;
-      }
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok || !data.invoice) {
-        setError(data.error || "Could not create invoice.");
-        return;
-      }
-      setInvoices((prev) => [data.invoice, ...prev]);
-      setDraft(cloneInvoice(data.invoice));
-    } catch {
-      setError("Network error creating invoice.");
-    } finally {
-      setSaving(false);
+  function handleNew() {
+    if (isLocalDraft(draft) && !confirmDiscardLocalDraft()) {
+      return;
     }
+    setError("");
+    setSuccessMessage("");
+    setDraft(createBlankLocalDraft());
+  }
+
+  function draftWithInvoiceNumberFromDom(d) {
+    if (!d) return d;
+    const el = invoiceNumberInputRef.current;
+    if (!el || typeof el.value !== "string") return d;
+    const domTrim = el.value.trim();
+    const stateTrim = String(d.number ?? "").trim();
+    // Avoid overwriting state with an empty input (ref present but value not yet synced).
+    if (!domTrim && stateTrim) return d;
+    return { ...d, number: el.value };
   }
 
   async function handleSave() {
-    if (!draft?.id) return;
+    if (!draft) {
+      setError(
+        "No invoice to save. Click + New invoice, fill in the form, then try again."
+      );
+      return;
+    }
+    const toSave = draftWithInvoiceNumberFromDom(draft);
+    const v = validateDraftForSave(toSave, invoices);
+    if (!v.ok) {
+      setSuccessMessage("");
+      setError(v.errors.join(" "));
+      return;
+    }
     const k = getStoredAdminKey();
-    if (!k) return;
+    if (!k) {
+      setError(
+        "Not signed in. Open the admin login page and enter your admin API key, then try again."
+      );
+      return;
+    }
     setSaving(true);
     setError("");
+    setSuccessMessage("");
     try {
-      const r = await fetch(`/api/invoices/${encodeURIComponent(draft.id)}`, {
-        method: "PUT",
-        headers: {
-          ...adminAuthHeaders(k),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(draft),
-      });
+      const mustCreateNew = String(toSave?.id || "").startsWith("local-");
+      if (mustCreateNew) {
+        const r = await fetch(apiUrl("/api/invoices"), {
+          method: "POST",
+          headers: {
+            ...adminAuthHeaders(k),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(bodyForInvoiceApi(toSave)),
+        });
+        if (r.status === 401) {
+          clearStoredAdminKey();
+          window.location.assign("/admin/");
+          return;
+        }
+        const data = await readResponseJson(r);
+        if (!r.ok || !data.invoice) {
+          setError(
+            data.error ||
+              `Could not save invoice (HTTP ${r.status}). Run the API on the same port as API_PORT in .env (e.g. npm run dev:api) and open the admin app from the Vite dev server so /api is proxied. Sign in with the same value as ADMIN_KEY in .env.`
+          );
+          return;
+        }
+        const saved = data.invoice;
+        setInvoices((prev) => {
+          const i = prev.findIndex((x) => String(x.id) === String(saved.id));
+          if (i === -1) return [saved, ...prev];
+          const next = [...prev];
+          next[i] = saved;
+          return next;
+        });
+        const numLabel = String(saved.number || "").trim() || "Invoice";
+        setSuccessMessage(
+          `${numLabel} was saved and added to Invoice History. Open Create Invoice when you are ready for the next one.`
+        );
+        await loadInvoices({ silent: true });
+        setDraft(createBlankLocalDraft());
+        setAdminSection("history");
+        return;
+      }
+
+      const r = await fetch(
+        apiUrl(`/api/invoices/${encodeURIComponent(toSave.id)}`),
+        {
+          method: "PUT",
+          headers: {
+            ...adminAuthHeaders(k),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(toSave),
+        }
+      );
       if (r.status === 401) {
         clearStoredAdminKey();
         window.location.assign("/admin/");
         return;
       }
-      const data = await r.json().catch(() => ({}));
+      const data = await readResponseJson(r);
       if (!r.ok || !data.invoice) {
         setError(data.error || "Could not save invoice.");
         return;
@@ -244,28 +399,59 @@ export default function AdminInvoicesPage() {
         return next;
       });
       setDraft(cloneInvoice(saved));
-    } catch {
-      setError("Network error saving invoice.");
+      const numLabel = String(saved.number || "").trim() || "Invoice";
+      setSuccessMessage(
+        `${numLabel} was saved. Your changes are shown in Invoice History below.`
+      );
+      await loadInvoices({ silent: true });
+      setAdminSection("history");
+    } catch (e) {
+      const msg =
+        e instanceof Error && e.message
+          ? e.message
+          : "Could not reach the server.";
+      setError(
+        `${msg} Start the API (npm run dev:api or full npm run dev) and ensure API_PORT in .env matches the port the admin app proxies to (see admin/vite.config.js).`
+      );
     } finally {
       setSaving(false);
     }
   }
 
+  function handleDiscardLocal() {
+    if (!isLocalDraft(draft)) return;
+    if (
+      !window.confirm(
+        "Discard this unsaved invoice? Nothing will be stored. This cannot be undone."
+      )
+    ) {
+      return;
+    }
+    setError("");
+    setSuccessMessage("");
+    setDraft(createBlankLocalDraft());
+  }
+
   async function handleDelete() {
-    if (!draft?.id) return;
+    if (!draft?.id || isLocalDraft(draft)) return;
+    await handleDeleteById(draft.id);
+  }
+
+  async function handleDeleteById(id) {
+    if (!id || String(id).startsWith("local-")) return;
     if (!window.confirm("Delete this invoice permanently?")) return;
     const k = getStoredAdminKey();
     if (!k) return;
     setSaving(true);
     setError("");
     try {
-      const r = await fetch("/api/invoices/delete", {
+      const r = await fetch(apiUrl("/api/invoices/delete"), {
         method: "POST",
         headers: {
           ...adminAuthHeaders(k),
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ id: draft.id }),
+        body: JSON.stringify({ id }),
       });
       if (r.status === 401) {
         clearStoredAdminKey();
@@ -277,6 +463,13 @@ export default function AdminInvoicesPage() {
         setError(data.error || "Could not delete invoice.");
         return;
       }
+      if (viewInvoice && String(viewInvoice.id) === String(id)) {
+        setViewInvoice(null);
+      }
+      if (draft && String(draft.id) === String(id)) {
+        setDraft(createBlankLocalDraft());
+      }
+      setSuccessMessage("");
       await loadInvoices();
     } catch {
       setError("Network error deleting invoice.");
@@ -285,8 +478,41 @@ export default function AdminInvoicesPage() {
     }
   }
 
+  function openHistoryView(inv) {
+    setViewInvoice(cloneInvoice(inv));
+  }
+
+  function editInvoiceFromHistory(inv) {
+    if (isLocalDraft(draft) && !confirmDiscardLocalDraft()) {
+      return;
+    }
+    setViewInvoice(null);
+    setAdminSection("create");
+    setError("");
+    setSuccessMessage("");
+    setDraft(cloneInvoice(inv));
+  }
+
   function handlePrint() {
     window.print();
+  }
+
+  function applySignature(dataUrl) {
+    setDraft((d) =>
+      d
+        ? {
+            ...d,
+            signatureDataUrl: dataUrl,
+            signedAt: new Date().toISOString(),
+          }
+        : d
+    );
+  }
+
+  function clearSignature() {
+    setDraft((d) =>
+      d ? { ...d, signatureDataUrl: "", signedAt: "" } : d
+    );
   }
 
   function setField(key, value) {
@@ -337,6 +563,55 @@ export default function AdminInvoicesPage() {
 
   return (
     <main className="admin-main admin-invoices-main">
+      <div className="invoice-admin-top">
+        <div className="invoice-admin-tabs-row">
+          <button
+            type="button"
+            className={`invoice-admin-tab${
+              adminSection === "create" ? " invoice-admin-tab--active" : ""
+            }`}
+            onClick={() => {
+              setError("");
+              setSuccessMessage("");
+              setViewInvoice(null);
+              setAdminSection("create");
+            }}
+          >
+            Create Invoice
+          </button>
+          <button
+            type="button"
+            className={`invoice-admin-tab${
+              adminSection === "history" ? " invoice-admin-tab--active" : ""
+            }`}
+            onClick={() => {
+              setError("");
+              setSuccessMessage("");
+              setAdminSection("history");
+            }}
+          >
+            Invoice History
+          </button>
+        </div>
+        <p className="invoice-admin-sync-hint">
+          The public <strong>Pay online</strong> page only sees invoices after you
+          click <strong>Save Invoice</strong>. Drafts stay in the browser until
+          then and never appear in Invoice History or customer lookup. Only saved,
+          valid invoices can be paid (minimum $0.50 for cards).
+        </p>
+        {error ? (
+          <p className="admin-banner admin-banner-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {successMessage ? (
+          <p className="admin-banner admin-banner-success" role="status">
+            {successMessage}
+          </p>
+        ) : null}
+      </div>
+
+      {adminSection === "create" ? (
       <div className="admin-invoices-grid">
         <aside className="invoice-aside">
           <h2>Invoices</h2>
@@ -350,44 +625,90 @@ export default function AdminInvoicesPage() {
           </button>
           {loading ? (
             <p className="admin-muted">Loading…</p>
-          ) : invoices.length === 0 ? (
-            <p className="admin-muted">No invoices yet. Create one to start.</p>
           ) : (
-            <ul className="invoice-list">
-              {invoices.map((inv) => (
-                <li key={inv.id}>
-                  <button
-                    type="button"
-                    className={`invoice-list-item${
-                      draft && String(draft.id) === String(inv.id)
-                        ? " invoice-list-item-active"
-                        : ""
-                    }`}
-                    onClick={() => selectInvoice(inv)}
-                  >
-                    <span className="invoice-list-num">{inv.number}</span>
-                    <span className="invoice-list-meta">
-                      {inv.clientName || "No client"} · {inv.issueDate || "—"}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              {!isLocalDraft(draft) && invoices.length === 0 ? (
+                <p className="admin-muted">
+                  No saved invoices yet. Click <strong>+ New invoice</strong> to
+                  start a draft, then <strong>Save Invoice</strong> when it is
+                  complete.
+                </p>
+              ) : null}
+              {isLocalDraft(draft) || invoices.length > 0 ? (
+                <ul className="invoice-list">
+                  {isLocalDraft(draft) ? (
+                    <li key={draft.id}>
+                      <button
+                        type="button"
+                        className="invoice-list-item invoice-list-item-active"
+                      >
+                        <span className="invoice-list-row1">
+                          <span className="invoice-list-num invoice-list-num--draft">
+                            Unsaved draft
+                          </span>
+                        </span>
+                        <span className="invoice-list-meta">
+                          Not stored until you save
+                        </span>
+                      </button>
+                    </li>
+                  ) : null}
+                  {invoices.map((inv) => (
+                    <li key={inv.id}>
+                      <button
+                        type="button"
+                        className={`invoice-list-item${
+                          draft && String(draft.id) === String(inv.id)
+                            ? " invoice-list-item-active"
+                            : ""
+                        }`}
+                        onClick={() => selectInvoice(inv)}
+                      >
+                        <span className="invoice-list-row1">
+                          <span className="invoice-list-num">{inv.number}</span>
+                          {inv.paymentStatus === "paid" ? (
+                            <span className="invoice-list-paid">Paid</span>
+                          ) : inv.paymentStatus === "pending" ? (
+                            <span className="invoice-list-pending">Pending</span>
+                          ) : null}
+                        </span>
+                        <span className="invoice-list-meta">
+                          {inv.clientName || "No client"} · {inv.issueDate || "—"}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </>
           )}
         </aside>
 
         <div className="invoice-form-panel">
           <h2>Edit invoice</h2>
+          {isLocalDraft(draft) ? (
+            <p className="admin-muted invoice-draft-banner">
+              <strong>Draft</strong> — not saved yet. Nothing is written to the
+              server or Invoice History until you click <strong>Save Invoice</strong>
+              .
+            </p>
+          ) : null}
           {error ? (
             <p className="admin-banner admin-banner-error" role="alert">
               {error}
             </p>
           ) : null}
+          {successMessage ? (
+            <p className="admin-banner admin-banner-success" role="status">
+              {successMessage}
+            </p>
+          ) : null}
 
           {!draft ? (
             <p className="admin-muted">
-              Select an invoice or create a new one. Your changes stay on this
-              device until you click Save.
+              Select a saved invoice from the list, or click <strong>+ New invoice</strong>{" "}
+              to start a draft. Use <strong>Save Invoice</strong> when the invoice is
+              complete and valid.
             </p>
           ) : (
             <>
@@ -395,6 +716,7 @@ export default function AdminInvoicesPage() {
                 <label className="invoice-field">
                   <span>Invoice #</span>
                   <input
+                    ref={invoiceNumberInputRef}
                     value={draft.number || ""}
                     onChange={(e) => setField("number", e.target.value)}
                   />
@@ -491,6 +813,29 @@ export default function AdminInvoicesPage() {
                     onChange={(e) => setField("clientEmail", e.target.value)}
                   />
                 </label>
+
+                <label className="invoice-field invoice-field-full">
+                  <span>Payment — bank name (print layout)</span>
+                  <input
+                    value={draft.paymentBank || ""}
+                    onChange={(e) => setField("paymentBank", e.target.value)}
+                    placeholder="e.g. Your business bank"
+                  />
+                </label>
+                <label className="invoice-field">
+                  <span>Payment — account / name on account</span>
+                  <input
+                    value={draft.paymentAccount || ""}
+                    onChange={(e) => setField("paymentAccount", e.target.value)}
+                  />
+                </label>
+                <label className="invoice-field">
+                  <span>Payment — phone</span>
+                  <input
+                    value={draft.paymentPhone || ""}
+                    onChange={(e) => setField("paymentPhone", e.target.value)}
+                  />
+                </label>
               </div>
 
               <div className="invoice-lines-header">
@@ -554,8 +899,27 @@ export default function AdminInvoicesPage() {
                   onClick={() => handleSave()}
                   disabled={saving}
                 >
-                  {saving ? "Saving…" : "Save invoice"}
+                  {saving ? "Saving…" : "Save Invoice"}
                 </button>
+                {isLocalDraft(draft) ? (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-danger"
+                    onClick={() => handleDiscardLocal()}
+                    disabled={saving}
+                  >
+                    Discard Invoice
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-danger"
+                    onClick={() => handleDelete()}
+                    disabled={saving}
+                  >
+                    Delete
+                  </button>
+                )}
                 <button
                   type="button"
                   className="admin-btn admin-btn-ghost"
@@ -565,11 +929,18 @@ export default function AdminInvoicesPage() {
                 </button>
                 <button
                   type="button"
-                  className="admin-btn admin-btn-danger"
-                  onClick={() => handleDelete()}
-                  disabled={saving}
+                  className="admin-btn admin-btn-ghost"
+                  onClick={() => setSigModalOpen(true)}
                 >
-                  Delete
+                  Sign electronically
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost"
+                  onClick={() => clearSignature()}
+                  disabled={!draft?.signatureDataUrl}
+                >
+                  Clear signature
                 </button>
               </div>
             </>
@@ -589,6 +960,134 @@ export default function AdminInvoicesPage() {
           </div>
         </div>
       </div>
+      ) : (
+      <div className="invoice-history-wrap">
+        <h2 className="invoice-history-title">All invoices</h2>
+        {loading ? (
+          <p className="admin-muted">Loading…</p>
+        ) : invoices.length === 0 ? (
+          <p className="admin-muted">
+            No invoices yet. Open <strong>Create Invoice</strong> to add one.
+          </p>
+        ) : (
+          <div className="invoice-history-table-wrap">
+            <table className="invoice-history-table">
+              <thead>
+                <tr>
+                  <th>Invoice #</th>
+                  <th>Customer</th>
+                  <th>Total</th>
+                  <th>Date created</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...invoices]
+                  .sort(
+                    (a, b) =>
+                      new Date(b.createdAt || 0).getTime() -
+                      new Date(a.createdAt || 0).getTime()
+                  )
+                  .map((inv) => {
+                    const st = invoiceHistoryStatus(inv);
+                    return (
+                      <tr key={inv.id}>
+                        <td className="invoice-history-mono">
+                          {inv.number || "—"}
+                        </td>
+                        <td>{inv.clientName?.trim() || "—"}</td>
+                        <td>
+                          {moneyHistory.format(
+                            computeInvoiceTotalDollars(inv)
+                          )}
+                        </td>
+                        <td>{formatInvoiceCreatedAt(inv.createdAt)}</td>
+                        <td>
+                          <span
+                            className={`invoice-status-pill invoice-status-pill--${st}`}
+                          >
+                            {st === "paid"
+                              ? "Paid"
+                              : st === "pending"
+                                ? "Pending"
+                                : "Unpaid"}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="invoice-history-actions">
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-ghost invoice-history-action-btn"
+                              onClick={() => openHistoryView(inv)}
+                            >
+                              View
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-ghost invoice-history-action-btn"
+                              onClick={() => editInvoiceFromHistory(inv)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-danger invoice-history-action-btn"
+                              onClick={() => handleDeleteById(inv.id)}
+                              disabled={saving}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      )}
+
+      {viewInvoice ? (
+        <div
+          className="invoice-view-modal-backdrop"
+          role="presentation"
+          onClick={() => setViewInvoice(null)}
+        >
+          <div
+            className="invoice-view-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invoice-view-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="invoice-view-modal-head">
+              <h2 id="invoice-view-title">
+                Invoice {viewInvoice.number || ""}
+              </h2>
+              <button
+                type="button"
+                className="admin-btn admin-btn-ghost"
+                onClick={() => setViewInvoice(null)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="invoice-view-modal-scroll">
+              <div id="invoice-print-root">
+                <InvoiceDocument invoice={viewInvoice} />
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <ElectronicSignatureModal
+        open={sigModalOpen}
+        onClose={() => setSigModalOpen(false)}
+        onApply={applySignature}
+      />
     </main>
   );
 }

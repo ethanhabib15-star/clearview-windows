@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { IconMail, IconPhone, IconTrash } from "../components/Icons.jsx";
+import { apiUrl } from "../admin/api.js";
 import {
   adminAuthHeaders,
   clearStoredAdminKey,
@@ -24,6 +25,21 @@ function typeLabel(v) {
   return v.charAt(0).toUpperCase() + v.slice(1);
 }
 
+const SUBJECT_LABELS = {
+  general: "General inquiry",
+  quote: "Request a quote",
+  support: "Technical / support",
+  partnership: "Partnership / commercial",
+  feedback: "Feedback",
+};
+
+function subjectLabel(m) {
+  const s = m.subject;
+  if (s && SUBJECT_LABELS[s]) return SUBJECT_LABELS[s];
+  if (m.type) return `Project: ${typeLabel(m.type)}`;
+  return "—";
+}
+
 export default function AdminMessagesPage() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +52,7 @@ export default function AdminMessagesPage() {
     setLoading(true);
     setLoadError("");
     try {
-      const r = await fetch("/api/messages", {
+      const r = await fetch(apiUrl("/api/messages"), {
         headers: adminAuthHeaders(k),
       });
       if (r.status === 401) {
@@ -70,7 +86,7 @@ export default function AdminMessagesPage() {
     setDeletingId(id);
     setLoadError("");
     try {
-      const r = await fetch("/api/messages/delete", {
+      const r = await fetch(apiUrl("/api/messages/delete"), {
         method: "POST",
         headers: {
           ...adminAuthHeaders(k),
@@ -133,11 +149,11 @@ export default function AdminMessagesPage() {
           <div className="admin-empty-card">
             <p>No messages yet.</p>
             <p className="admin-muted">
-              Submit the contact form on the homepage; entries appear here
+              Submit the contact form on the site; entries appear here
               instantly.
             </p>
-            <a href="/#contact" className="admin-link">
-              Open contact form
+            <a href="/contact" className="admin-link">
+              Open contact page
             </a>
           </div>
         ) : (
@@ -149,7 +165,7 @@ export default function AdminMessagesPage() {
                   <th>Name</th>
                   <th>Email</th>
                   <th>Phone</th>
-                  <th>Type</th>
+                  <th>Subject</th>
                   <th>Message</th>
                   <th className="admin-th-actions">Actions</th>
                 </tr>
@@ -181,16 +197,42 @@ export default function AdminMessagesPage() {
                         <span className="admin-cell-muted">—</span>
                       )}
                     </td>
-                    <td>{typeLabel(m.type)}</td>
+                    <td>{subjectLabel(m)}</td>
                     <td className="admin-cell-message">
-                      {m.message ? (
+                      {m.message || m.projectDetails ? (
                         <details className="admin-details">
                           <summary>
-                            {m.message.length > 80
-                              ? `${m.message.slice(0, 80)}…`
-                              : m.message}
+                            {(m.message || m.projectDetails || "").length > 80
+                              ? `${(m.message || m.projectDetails || "").slice(0, 80)}…`
+                              : m.message || m.projectDetails || "—"}
                           </summary>
-                          <p>{m.message}</p>
+                          {m.subject === "quote" &&
+                          (m.serviceType || m.projectDetails || m.budgetRange) ? (
+                            <div className="admin-quote-meta">
+                              {m.serviceType ? (
+                                <p>
+                                  <strong>Service:</strong>{" "}
+                                  {typeLabel(m.serviceType)}
+                                </p>
+                              ) : null}
+                              {m.projectDetails ? (
+                                <p>
+                                  <strong>Project:</strong> {m.projectDetails}
+                                </p>
+                              ) : null}
+                              {m.budgetRange ? (
+                                <p>
+                                  <strong>Budget:</strong> {m.budgetRange}
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          {m.message ? <p>{m.message}</p> : null}
+                          {m.type && !m.subject ? (
+                            <p className="admin-muted">
+                              <strong>Project type:</strong> {typeLabel(m.type)}
+                            </p>
+                          ) : null}
                         </details>
                       ) : (
                         <span className="admin-cell-muted">—</span>

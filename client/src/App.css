@@ -804,6 +804,22 @@
   text-decoration: underline;
 }
 
+.contact-block-address {
+  margin: 0;
+  white-space: pre-line;
+  color: rgba(250, 250, 250, 0.88);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.contact-form-hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .contact-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -961,6 +977,21 @@
   margin: 0.5rem 0 0;
   font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.5);
+}
+
+.footer-links {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.footer-links a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  text-decoration: underline;
 }
 
 .footer-symbols {

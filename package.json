@@ -5,9 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n api,client,admin -c red,cyan,magenta \"npm run dev:api\" \"npm run dev:client\" \"npm run dev:admin\"",
+    "dev:invoices": "concurrently -n api,admin -c red,magenta \"npm run dev:api\" \"npm run dev:admin\"",
+    "dev:pay": "npm run dev",
     "dev:client": "vite --config client/vite.config.js",
     "dev:admin": "vite --config admin/vite.config.js",
     "dev:api": "node server/index.js",
+    "verify:invoice": "node scripts/verify-invoice-save.mjs",
+    "verify:lookup": "node scripts/verify-public-lookup.mjs",
+    "verify:api": "node scripts/verify-api-public.mjs",
+    "restart:api:win": "powershell -ExecutionPolicy Bypass -File scripts/restart-api-windows.ps1",
     "build": "npm run build:client && npm run build:admin",
     "build:client": "vite build --config client/vite.config.js",
     "build:admin": "vite build --config admin/vite.config.js",
@@ -17,12 +23,16 @@
     "start": "node server/index.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "@stripe/react-stripe-js": "^6.1.0",
+    "@stripe/stripe-js": "^9.0.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.1.1"
+    "react-router-dom": "^7.1.1",
+    "stripe": "^17.7.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

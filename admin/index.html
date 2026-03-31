@@ -8,13 +8,57 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <title>Admin · Ryzhkov ClearView Windows</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div
+        style="
+          min-height: 100vh;
+          display: grid;
+          place-items: center;
+          padding: 1.5rem;
+          background: #090b10;
+          color: #f5f5f5;
+          font-family: Inter, system-ui, sans-serif;
+        "
+      >
+        <div
+          style="
+            width: min(640px, 100%);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: #111;
+            padding: 1rem;
+          "
+        >
+          <h1 style="margin: 0 0 0.5rem; font-size: 1.05rem">
+            Loading admin dashboard...
+          </h1>
+          <p style="margin: 0; color: #a1a1a1">
+            If this screen does not change, JavaScript is blocked or failed to load.
+          </p>
+        </div>
+      </div>
+    </div>
+    <noscript>
+      <div
+        style="
+          margin: 1rem;
+          padding: 0.75rem 1rem;
+          border-radius: 8px;
+          border: 1px solid #f87171;
+          background: #1a0f12;
+          color: #fecaca;
+          font-family: Inter, system-ui, sans-serif;
+        "
+      >
+        JavaScript is disabled. The admin dashboard requires JavaScript.
+      </div>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

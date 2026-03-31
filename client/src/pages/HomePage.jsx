@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
+import { usePublicContacts } from "../hooks/usePublicContacts.js";
+import { mailHref, telHref } from "../utils/contactLinks.js";
 import {
   IconBuilding,
   IconCalendar,
@@ -129,10 +131,16 @@ function Header() {
               {label}
             </a>
           ))}
-          <a href="#contact" className="nav-cta" onClick={closeMenu}>
+          <Link to="/contact" onClick={closeMenu}>
+            Contact
+          </Link>
+          <Link to="/payments" onClick={closeMenu}>
+            Pay online
+          </Link>
+          <Link to="/contact" className="nav-cta" onClick={closeMenu}>
             <IconSparkles size={18} className="nav-cta-icon" aria-hidden />
             Get a quote
-          </a>
+          </Link>
         </nav>
       </div>
     </header>
@@ -187,7 +195,9 @@ function ContactForm() {
       email: String(fd.get("email") || "").trim(),
       phone: String(fd.get("phone") || "").trim(),
       type: String(fd.get("type") || ""),
+      subject: "general",
       message: String(fd.get("message") || "").trim(),
+      website: String(fd.get("website") || ""),
     };
     try {
       const r = await fetch("/api/messages", {
@@ -214,6 +224,10 @@ function ContactForm() {
 
   return (
     <form className="contact-form" onSubmit={handleSubmit}>
+      <label className="contact-form-hp" aria-hidden="true">
+        <span>Company website</span>
+        <input type="text" name="website" tabIndex={-1} autoComplete="off" />
+      </label>
       {submitError ? (
         <p className="form-error full" role="alert">
           {submitError}
@@ -257,6 +271,7 @@ function ContactForm() {
         <textarea
           name="message"
           rows={4}
+          required
           placeholder="Neighborhood (Tulsa, Broken Arrow, Coweta…), window count, timeline…"
         />
       </label>
@@ -280,8 +295,9 @@ function ContactForm() {
         )}
       </button>
       <p className="form-note">
-        Submissions are saved for your team. View them in the{" "}
-        <a href="/admin/">admin dashboard</a> (protected).
+        Prefer the full form?{" "}
+        <Link to="/contact">Open the contact page</Link> — same inbox in{" "}
+        <a href="/admin/">admin</a>.
       </p>
     </form>
   );
@@ -306,6 +322,8 @@ function SplitPanelImage({ image, label }) {
 }
 
 export default function HomePage() {
+  const { contacts } = usePublicContacts();
+
   return (
     <>
       <Header />
@@ -344,13 +362,16 @@ export default function HomePage() {
               handles Oklahoma weather.
             </p>
             <div className="hero-actions">
-              <a href="#contact" className="btn btn-primary btn-with-icon">
+              <Link to="/contact" className="btn btn-primary btn-with-icon">
                 <IconSparkles size={18} aria-hidden />
                 Request a free estimate
-              </a>
-              <a href="tel:+19185550100" className="btn btn-ghost btn-with-icon">
+              </Link>
+              <a
+                href={telHref(contacts.phone)}
+                className="btn btn-ghost btn-with-icon"
+              >
                 <IconPhone size={18} aria-hidden />
-                Call (918) 555-0100
+                Call {contacts.phone}
               </a>
             </div>
           </div>
@@ -507,20 +528,42 @@ export default function HomePage() {
                 </span>
                 <div>
                   <strong>Phone</strong>
-                  <a href="tel:+19185550100">(918) 555-0100</a>
+                  <a href={telHref(contacts.phone)}>{contacts.phone}</a>
                 </div>
               </div>
+              {contacts.alternatePhone ? (
+                <div className="contact-block">
+                  <span className="contact-block-icon" aria-hidden>
+                    <IconPhone size={22} />
+                  </span>
+                  <div>
+                    <strong>Alternate</strong>
+                    <a href={telHref(contacts.alternatePhone)}>
+                      {contacts.alternatePhone}
+                    </a>
+                  </div>
+                </div>
+              ) : null}
               <div className="contact-block">
                 <span className="contact-block-icon" aria-hidden>
                   <IconMail size={22} />
                 </span>
                 <div>
                   <strong>Email</strong>
-                  <a href="mailto:hello@ryzhkovclearviewwindows.com">
-                    hello@ryzhkovclearviewwindows.com
-                  </a>
+                  <a href={mailHref(contacts.email)}>{contacts.email}</a>
                 </div>
               </div>
+              {contacts.address ? (
+                <div className="contact-block">
+                  <span className="contact-block-icon" aria-hidden>
+                    <IconBuilding size={22} />
+                  </span>
+                  <div>
+                    <strong>Area / address</strong>
+                    <p className="contact-block-address">{contacts.address}</p>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <ContactForm />
           </div>

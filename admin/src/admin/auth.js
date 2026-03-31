@@ -1,9 +1,10 @@
-export const ADMIN_STORAGE_KEY = "ryzhkov_clearview_admin_key";
+export const ADMIN_STORAGE_KEY = "ryzhkov_clearview_admin_access_token";
 
-export function adminAuthHeaders(k) {
+export function adminAuthHeaders(token) {
+  const t = String(token || "").trim();
+  if (!t) return {};
   return {
-    Authorization: `Bearer ${k}`,
-    "X-Admin-Key": k,
+    Authorization: `Bearer ${t}`,
   };
 }
 
@@ -12,8 +13,8 @@ export function getStoredAdminKey() {
   return sessionStorage.getItem(ADMIN_STORAGE_KEY)?.trim() ?? "";
 }
 
-export function setStoredAdminKey(k) {
-  sessionStorage.setItem(ADMIN_STORAGE_KEY, k);
+export function setStoredAdminKey(token) {
+  sessionStorage.setItem(ADMIN_STORAGE_KEY, String(token || "").trim());
 }
 
 export function clearStoredAdminKey() {

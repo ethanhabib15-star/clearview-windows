@@ -1,0 +1,311 @@
+/* Shared with admin print preview and client payment page — keep in sync. */
+#invoice-print-root {
+  background: #f4efe6;
+  color: #111;
+  border-radius: 10px;
+  padding: 1.75rem 1.75rem 2rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  border: 1px solid #c4b8a8;
+  overflow-x: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.invoice-doc--template {
+  --tpl-red: #c41e3a;
+  --tpl-ink: #111;
+  --tpl-cream: #f4efe6;
+  --tpl-grey: #e8e2d8;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 9.5pt;
+  line-height: 1.5;
+  color: var(--tpl-ink);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.invoice-tpl-mono {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.invoice-doc-placeholder {
+  color: #6b7280;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 2rem 1rem;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.invoice-tpl-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem 2rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 3px solid var(--tpl-ink);
+}
+
+.invoice-tpl-title {
+  margin: 0;
+  font-family: "Bebas Neue", "Arial Narrow", sans-serif;
+  font-size: clamp(3.5rem, 12vw, 5.5rem);
+  font-weight: 400;
+  line-height: 0.9;
+  letter-spacing: 0.02em;
+  color: var(--tpl-red);
+}
+
+.invoice-tpl-meta {
+  margin-top: 1rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.65;
+}
+
+.invoice-tpl-hero-right {
+  text-align: right;
+  max-width: 22rem;
+}
+
+.invoice-tpl-company {
+  font-family: "Bebas Neue", "Arial Narrow", sans-serif;
+  font-size: 1.65rem;
+  line-height: 1.1;
+  color: var(--tpl-red);
+  letter-spacing: 0.04em;
+}
+
+.invoice-tpl-company-detail {
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--tpl-ink);
+}
+
+.invoice-tpl-bill-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.invoice-tpl-section-label {
+  margin: 0 0 0.5rem;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  color: var(--tpl-red);
+  font-weight: 400;
+}
+
+.invoice-tpl-bill-body {
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.invoice-tpl-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin-bottom: 0.5rem;
+  border: 2px solid var(--tpl-ink);
+}
+
+.invoice-tpl-table th,
+.invoice-tpl-table td {
+  border: 1px solid var(--tpl-ink);
+  padding: 0.45rem 0.5rem;
+  vertical-align: top;
+}
+
+.invoice-tpl-table thead th {
+  background: var(--tpl-grey);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: left;
+}
+
+.invoice-tpl-table thead th:nth-child(2),
+.invoice-tpl-table thead th:nth-child(3),
+.invoice-tpl-table thead th:nth-child(4) {
+  text-align: center;
+}
+
+.invoice-tpl-table tbody td:nth-child(1) {
+  width: 46%;
+  word-break: break-word;
+}
+
+.invoice-tpl-table tbody td:nth-child(2),
+.invoice-tpl-table tbody td:nth-child(3),
+.invoice-tpl-table tbody td:nth-child(4) {
+  width: 18%;
+}
+
+.invoice-tpl-qty {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-tpl-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-tpl-row-empty td {
+  height: 1.35rem;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.invoice-tpl-tfoot-spacer td {
+  border: none;
+  height: 0.5rem;
+  padding: 0;
+}
+
+.invoice-tpl-tfoot-row td {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.invoice-tpl-tfoot-label {
+  text-align: right !important;
+  padding-right: 0.75rem !important;
+}
+
+.invoice-tpl-grand td {
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding-top: 0.6rem !important;
+  border-top: 2px solid var(--tpl-ink) !important;
+}
+
+.invoice-tpl-footer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.25rem 1.5rem;
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 2px solid var(--tpl-ink);
+  align-items: start;
+}
+
+.invoice-tpl-terms h4 {
+  margin: 0 0 0.4rem;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  color: var(--tpl-red);
+}
+
+.invoice-tpl-terms-text {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.55;
+  color: var(--tpl-ink);
+}
+
+.invoice-tpl-contact-line {
+  margin: 0 0 0.75rem;
+  font-size: 0.65rem;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.invoice-tpl-signatory {
+  margin: 0;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 1.1rem;
+  color: var(--tpl-red);
+  letter-spacing: 0.04em;
+}
+
+.invoice-tpl-signature {
+  text-align: right;
+}
+
+.invoice-tpl-signature-line {
+  height: 2.5rem;
+  border-bottom: 2px solid var(--tpl-ink);
+  margin-bottom: 0.35rem;
+  max-width: 11rem;
+  margin-left: auto;
+}
+
+.invoice-tpl-signature-img {
+  max-width: 11rem;
+  max-height: 4rem;
+  width: auto;
+  height: auto;
+  margin: 0 0 0.25rem auto;
+  display: block;
+  object-fit: contain;
+}
+
+.invoice-tpl-signed-meta {
+  margin: 0;
+  font-size: 0.62rem;
+  max-width: 11rem;
+  margin-left: auto;
+  line-height: 1.35;
+}
+
+.invoice-tpl-signed-meta.muted {
+  color: #555;
+}
+
+@media (max-width: 640px) {
+  .invoice-tpl-bill-grid,
+  .invoice-tpl-footer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .invoice-tpl-signature {
+    text-align: left;
+  }
+
+  .invoice-tpl-signature-line,
+  .invoice-tpl-signature-img,
+  .invoice-tpl-signed-meta {
+    margin-left: 0;
+  }
+}
+
+@media print {
+  @page {
+    margin: 0.5in;
+    size: letter;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #invoice-print-root,
+  #invoice-print-root * {
+    visibility: visible;
+  }
+
+  #invoice-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0.4in;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+    background: #f4efe6 !important;
+  }
+
+  .invoice-doc--template,
+  .invoice-doc--template * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
