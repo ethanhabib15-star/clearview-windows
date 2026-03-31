@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(root, "..");
 
-/** With base `/admin/`, the app lives at /admin/ — / alone 404s; send users to the SPA entry. */
+/** Keep local dev compatibility if someone still opens `/admin/` directly. */
 function redirectRootToAdmin() {
   return {
     name: "redirect-root-to-admin",
@@ -33,8 +33,6 @@ export default defineConfig(({ command, mode }) => {
   const viteSupabaseAnonKey = String(
     env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || ""
   ).trim();
-  const isDevServer = command === "serve";
-
   return {
     root,
     envDir: projectRoot,
@@ -42,9 +40,8 @@ export default defineConfig(({ command, mode }) => {
       "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(viteSupabaseUrl),
       "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(viteSupabaseAnonKey),
     },
-    // In dev, Vite runtime modules are served from root (/@vite, /@react-refresh, /@fs).
-    // Keep /admin/ only for production build output paths.
-    base: isDevServer ? "/" : "/admin/",
+    // Use root-based asset URLs so production hosting serves bundles correctly.
+    base: "/",
     publicDir: path.join(root, "public"),
     plugins: [react(), redirectRootToAdmin()],
     resolve: {
