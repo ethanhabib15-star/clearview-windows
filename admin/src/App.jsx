@@ -8,7 +8,7 @@ import AdminPaymentsPage from "./pages/AdminPaymentsPage.jsx";
 
 export default function App() {
   return (
-    <BrowserRouter basename="/admin">
+    <BrowserRouter>
       <Routes>
         <Route element={<AdminLayout />}>
           <Route index element={<AdminDashboardPage />} />
